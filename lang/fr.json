@@ -265,12 +265,7 @@
   "collective.unarchive.confirm.btn": "Désarchiver",
   "Collective.URL": "URL du Collectif",
   "collective.user.orderProcessing.manual": "<strong>Votre don est en attente.</strong> Veuillez suivre les instructions dans l'e-mail de confirmation pour payer manuellement l'hôte du collectif.",
-<<<<<<< HEAD
-  "collective.website.description": "Entrez l'adresse URL de votre site Web ou de votre page Facebook",
-  "CollectiveBalance": "Solde {type, select, COLLECTIVE {du Collectif} EVENT {de l'Événement} ORGANIZATION {de l'Organisation} FUND {du Fonds} PROJECT {du Projet} other {du Compte}}",
-=======
   "CollectiveBalance": "{type, select, COLLECTIVE {Collective balance} EVENT {Event balance} ORGANIZATION {Organization balance} FUND {Fund balance} PROJECT {Project balance} other {Account balance}}",
->>>>>>> Re write createorganizationform
   "CollectiveColorPicker.Custom": "Utiliser une couleur personnalisée",
   "CollectiveColorPicker.Error": "Vous devez utiliser une valeur hexadécimale (ex: #3E8DCE)",
   "CollectiveColorPicker.Preset": "Couleurs prédéfinies",
@@ -1097,9 +1092,8 @@
   "InputTypeCountry.placeholder": "Veuillez sélectionner votre pays",
   "Invitation.Accepted": "Acceptée",
   "Invitation.Declined": "Refusée",
-  "InviteOnItsWay": "Votre invitation est en route",
-  "InviteOnItsWay": "Your invite is on its way",
   "inviteAdmin": "INVITE CO-ADMIN",
+  "InviteOnItsWay": "Your invite is on its way",
   "InviteUser": "Inviter un utilisateur",
   "join": "Rejoindre",
   "join.becomeASponsor": "Become a sponsor",
