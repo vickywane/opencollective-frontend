@@ -128,13 +128,11 @@ class HostDashboardPage extends React.Component {
         return <PendingApplications hostSlug={host.slug} />;
       case 'donations':
         return (
-          <Box py={4}>
-            <OrdersWithData
-              accountSlug={host.slug}
-              status={ORDER_STATUS.PENDING}
-              title={<FormattedMessage id="PendingBankTransfers" defaultMessage="Pending bank transfers" />}
-            />
-          </Box>
+          <OrdersWithData
+            accountSlug={host.slug}
+            status={ORDER_STATUS.PENDING}
+            title={<FormattedMessage id="PendingBankTransfers" defaultMessage="Pending bank transfers" />}
+          />
         );
       case HOST_SECTIONS.HOSTED_COLLECTIVES:
         return <HostDashboardHostedCollectives hostSlug={host.slug} />;
@@ -207,7 +205,7 @@ class HostDashboardPage extends React.Component {
                 <FormattedMessage id="HostedCollectives" defaultMessage="Hosted Collectives" />
               </MenuLink>
             </Container>
-            <div>{this.renderView(host)}</div>
+            <Box py={['32px', '60px']}>{this.renderView(host)}</Box>
           </React.Fragment>
         )}
       </Page>
