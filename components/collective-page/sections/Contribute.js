@@ -6,39 +6,31 @@ import { cloneDeep, orderBy, partition, set } from 'lodash';
 import memoizeOne from 'memoize-one';
 import dynamic from 'next/dynamic';
 import { FormattedMessage } from 'react-intl';
-import styled from 'styled-components';
 
-import { getTopContributors } from '../../../lib/collective.lib';
 import { CollectiveType } from '../../../lib/constants/collectives';
 import { TierTypes } from '../../../lib/constants/tiers-types';
-import { getEnvVar } from '../../../lib/env-utils';
 import { getErrorFromGraphqlException } from '../../../lib/errors';
 import { isPastEvent } from '../../../lib/events';
 import { API_V2_CONTEXT } from '../../../lib/graphql/helpers';
-import { parseToBoolean } from '../../../lib/utils';
 
 import { Sections } from '../_constants';
 import Container from '../../Container';
 import ContainerOverlay from '../../ContainerOverlay';
 import { CONTRIBUTE_CARD_WIDTH } from '../../contribute-cards/Contribute';
 import ContributeCardContainer, { CONTRIBUTE_CARD_PADDING_X } from '../../contribute-cards/ContributeCardContainer';
-import ContributeCollective from '../../contribute-cards/ContributeCollective';
 import ContributeCustom from '../../contribute-cards/ContributeCustom';
-import ContributeEvent from '../../contribute-cards/ContributeEvent';
 import ContributeTier from '../../contribute-cards/ContributeTier';
-import CreateNew from '../../contribute-cards/CreateNew';
 import { Box, Flex } from '../../Grid';
 import HorizontalScroller from '../../HorizontalScroller';
 import Link from '../../Link';
 import StyledButton from '../../StyledButton';
 import StyledSpinner from '../../StyledSpinner';
-import { H3, H4, P } from '../../Text';
+import { H3, P } from '../../Text';
 import ContainerSectionContent from '../ContainerSectionContent';
 import ContributeCardsContainer from '../ContributeCardsContainer';
 import { editAccountSettingMutation } from '../graphql/mutations';
 import { collectivePageQuery, getCollectivePageQueryVariables } from '../graphql/queries';
 import SectionHeader from '../SectionHeader';
-import TopContributors from '../TopContributors';
 
 import contributeSectionHeaderIcon from '../../../public/static/images/collective-navigation/CollectiveSectionHeaderIconContribute.png';
 
@@ -46,13 +38,6 @@ import contributeSectionHeaderIcon from '../../../public/static/images/collectiv
 const AdminContributeCardsContainer = dynamic(() => import('../../contribute-cards/AdminContributeCardsContainer'), {
   ssr: false,
 });
-
-/** The container for Top Contributors view */
-export const TopContributorsContainer = styled.div`
-  padding: 32px 16px;
-  margin-top: 48px;
-  background-color: #f5f7fa;
-`;
 
 const TIERS_ORDER_KEY = 'collectivePage.tiersOrder';
 
@@ -225,13 +210,9 @@ class SectionContribute extends React.PureComponent {
     return partition(events, isPastEvent);
   });
 
-  getTopContributors = memoizeOne(getTopContributors);
-
   render() {
-    const { collective, tiers, events, connectedCollectives, contributors, isAdmin } = this.props;
+    const { collective, tiers, events, connectedCollectives, isAdmin } = this.props;
     const { draggingContributionsOrder, isSaving, showTiersAdmin } = this.state;
-    const [topOrganizations, topIndividuals] = this.getTopContributors(contributors);
-    const hasNoContributorForEvents = !events.find(event => event.contributors.length > 0);
     const orderKeys = draggingContributionsOrder || this.getCollectiveContributionCardsOrder();
     const sortedTiers = this.getSortedCollectiveTiers(tiers, orderKeys);
     const isEvent = collective.type === CollectiveType.EVENT;
@@ -245,7 +226,6 @@ class SectionContribute extends React.PureComponent {
     const hasHost = collective.host;
     const isHost = collective.isHost;
     const waysToContribute = this.getFinancialContributions(sortedTiers);
-    const [pastEvents, upcomingEvents] = this.triageEvents(events);
 
     /*
     cases
@@ -262,7 +242,7 @@ class SectionContribute extends React.PureComponent {
 
     return (
       <Fragment>
-        <ContainerSectionContent pt={[4, 5]} pb={3}>
+        <ContainerSectionContent pt={[4, 5]}>
           <SectionHeader
             title={Sections.CONTRIBUTE}
             subtitle={
@@ -280,169 +260,90 @@ class SectionContribute extends React.PureComponent {
             }
             illustrationSrc={contributeSectionHeaderIcon}
           />
-        </ContainerSectionContent>
-        {isAdmin && !hasHost && !isHost && (
-          <ContainerSectionContent pt={5} pb={3}>
-            <Flex mb={4} justifyContent="space-between" alignItems="center" flexWrap="wrap">
-              <P color="black.700" my={2} mr={2} css={{ flex: '1 0 50%', maxWidth: 780 }}>
-                <FormattedMessage
-                  id="contributions.subtitle"
-                  defaultMessage="There are no contributions yet. To start accepting financial contributions, please choose a fiscal host."
-                />
-              </P>
-            </Flex>
-            <Box my={5}>
-              <Link route={'accept-financial-contributions'} params={{ slug: collective.slug }}>
-                <StyledButton buttonStyle="primary" buttonSize="large">
-                  <FormattedMessage id="contributions.startAccepting" defaultMessage="Start accepting contributions" />
-                </StyledButton>
-              </Link>
-            </Box>
-          </ContainerSectionContent>
-        )}
-
-        {((isAdmin && hasHost) || (isAdmin && isHost) || (!isAdmin && isActive)) && (
-          <Fragment>
-            {hasContribute && (
-              <Box mb={4} data-cy="financial-contributions">
-                <HorizontalScroller getScrollDistance={this.getContributeCardsScrollDistance}>
-                  {(ref, Chevrons) => (
-                    <div>
-                      <ContainerSectionContent>
-                        <Flex justifyContent="space-between" alignItems="center" mb={3}>
-                          <H3 fontSize="20px" fontWeight="600" color="black.700">
-                            <FormattedMessage id="CP.Contribute.Financial" defaultMessage="Financial contributions" />
-                          </H3>
-                          <Box m={2} flex="0 0 50px">
-                            <Chevrons />
-                          </Box>
-                        </Flex>
-                      </ContainerSectionContent>
-                      <Container position="relative">
-                        {isSaving && (
-                          <ContainerOverlay alignItems="center">
-                            <StyledSpinner size={64} />
-                            <P mt={3} fontSize="15px">
-                              <FormattedMessage id="Saving" defaultMessage="Saving..." />
-                            </P>
-                          </ContainerOverlay>
-                        )}
-                        {!(isAdmin && showTiersAdmin) && (
-                          <ContributeCardsContainer ref={ref} disableScrollSnapping={!!draggingContributionsOrder}>
-                            {waysToContribute.map(({ key, Component, componentProps }) => (
-                              <ContributeCardContainer key={key}>
-                                <Component {...componentProps} />
-                              </ContributeCardContainer>
-                            ))}
-                          </ContributeCardsContainer>
-                        )}
-                        {isAdmin && (
-                          <Container display={showTiersAdmin ? 'block' : 'none'} data-cy="admin-contribute-cards">
-                            <AdminContributeCardsContainer
-                              collective={collective}
-                              cards={waysToContribute}
-                              onContributionCardMove={this.onContributionCardMove}
-                              onContributionCardDrop={this.onContributionCardDrop}
-                              onMount={this.onTiersAdminReady}
-                            />
-                          </Container>
-                        )}
-                      </Container>
-                    </div>
-                  )}
-                </HorizontalScroller>
-              </Box>
-            )}
-            {hasOtherWaysToContribute && !parseToBoolean(getEnvVar('NEW_COLLECTIVE_NAVBAR')) && (
-              <HorizontalScroller getScrollDistance={this.getContributeCardsScrollDistance}>
-                {(ref, Chevrons) => (
-                  <div>
-                    <ContainerSectionContent>
-                      <Flex justifyContent="space-between" alignItems="center" mb={3}>
-                        <H3 fontSize="20px" fontWeight="600" color="black.700">
-                          {connectedCollectives.length > 0 ? (
-                            <FormattedMessage
-                              id="SectionContribute.MoreWays"
-                              defaultMessage="More ways to contribute"
-                            />
-                          ) : (
-                            <FormattedMessage id="Events" defaultMessage="Events" />
-                          )}
-                        </H3>
-                        <Box m={2} flex="0 0 50px">
-                          <Chevrons />
-                        </Box>
-                      </Flex>
-                    </ContainerSectionContent>
-
-                    <ContributeCardsContainer ref={ref}>
-                      {upcomingEvents.map(event => (
-                        <Box key={event.id} px={CONTRIBUTE_CARD_PADDING_X}>
-                          <ContributeEvent
-                            collective={collective}
-                            event={event}
-                            hideContributors={hasNoContributorForEvents}
-                            disableCTA={!collective.isActive || !event.isActive}
-                          />
-                        </Box>
-                      ))}
-                      {connectedCollectives.map(({ id, collective }) => (
-                        <Box key={id} px={CONTRIBUTE_CARD_PADDING_X}>
-                          <ContributeCollective collective={collective} />
-                        </Box>
-                      ))}
-                      {pastEvents.map(event => (
-                        <Box key={event.id} px={CONTRIBUTE_CARD_PADDING_X}>
-                          <ContributeEvent
-                            collective={collective}
-                            event={event}
-                            hideContributors={hasNoContributorForEvents}
-                            disableCTA={!collective.isActive || !event.isActive}
-                          />
-                        </Box>
-                      ))}
-                      {isAdmin && (
-                        <Box px={CONTRIBUTE_CARD_PADDING_X} minHeight={150}>
-                          <CreateNew route={`/${collective.slug}/events/create`} data-cy="create-event">
-                            <FormattedMessage id="event.create.btn" defaultMessage="Create Event" />
-                          </CreateNew>
-                        </Box>
-                      )}
-                    </ContributeCardsContainer>
-                  </div>
-                )}
-              </HorizontalScroller>
-            )}
-            {!isEvent && (
-              <ContainerSectionContent>
-                <Link route="contribute" params={{ collectiveSlug: collective.slug, verb: 'contribute' }}>
-                  <StyledButton mt={3} width={1} buttonSize="small" fontSize="14px">
-                    <FormattedMessage id="SectionContribute.All" defaultMessage="View all the ways to contribute" /> →
+          {isAdmin && !hasHost && !isHost && (
+            <ContainerSectionContent pt={5} pb={3}>
+              <Flex mb={4} justifyContent="space-between" alignItems="center" flexWrap="wrap">
+                <P color="black.700" my={2} mr={2} css={{ flex: '1 0 50%', maxWidth: 780 }}>
+                  <FormattedMessage
+                    id="contributions.subtitle"
+                    defaultMessage="There are no contributions yet. To start accepting financial contributions, please choose a fiscal host."
+                  />
+                </P>
+              </Flex>
+              <Box my={5}>
+                <Link route={'accept-financial-contributions'} params={{ slug: collective.slug }}>
+                  <StyledButton buttonStyle="primary" buttonSize="large">
+                    <FormattedMessage
+                      id="contributions.startAccepting"
+                      defaultMessage="Start accepting contributions"
+                    />
                   </StyledButton>
                 </Link>
-              </ContainerSectionContent>
-            )}
-            {!isEvent &&
-              (topOrganizations.length !== 0 || topIndividuals.length !== 0) &&
-              !parseToBoolean(getEnvVar('NEW_COLLECTIVE_NAVBAR')) && (
-                <TopContributorsContainer>
-                  <Container maxWidth={1090} m="0 auto" px={[15, 30]}>
-                    <H4 fontWeight="normal" color="black.700" mb={3}>
-                      <FormattedMessage
-                        id="SectionContribute.TopContributors"
-                        defaultMessage="Top financial contributors"
-                      />
-                    </H4>
-                    <TopContributors
-                      organizations={topOrganizations}
-                      individuals={topIndividuals}
-                      currency={collective.currency}
-                    />
-                  </Container>
-                </TopContributorsContainer>
+              </Box>
+            </ContainerSectionContent>
+          )}
+
+          {((isAdmin && hasHost) || (isAdmin && isHost) || (!isAdmin && isActive)) && (
+            <Fragment>
+              {hasContribute && (
+                <Box mb={4} data-cy="financial-contributions">
+                  <HorizontalScroller getScrollDistance={this.getContributeCardsScrollDistance}>
+                    {(ref, Chevrons) => (
+                      <div>
+                        <ContainerSectionContent>
+                          <Flex justifyContent="flex-end" alignItems="center" mb={3}>
+                            <Box m={2} flex="0 0 50px">
+                              <Chevrons />
+                            </Box>
+                          </Flex>
+                        </ContainerSectionContent>
+                        <Container position="relative">
+                          {isSaving && (
+                            <ContainerOverlay alignItems="center">
+                              <StyledSpinner size={64} />
+                              <P mt={3} fontSize="15px">
+                                <FormattedMessage id="Saving" defaultMessage="Saving..." />
+                              </P>
+                            </ContainerOverlay>
+                          )}
+                          {!(isAdmin && showTiersAdmin) && (
+                            <ContributeCardsContainer ref={ref} disableScrollSnapping={!!draggingContributionsOrder}>
+                              {waysToContribute.map(({ key, Component, componentProps }) => (
+                                <ContributeCardContainer key={key}>
+                                  <Component {...componentProps} />
+                                </ContributeCardContainer>
+                              ))}
+                            </ContributeCardsContainer>
+                          )}
+                          {isAdmin && (
+                            <Container display={showTiersAdmin ? 'block' : 'none'} data-cy="admin-contribute-cards">
+                              <AdminContributeCardsContainer
+                                collective={collective}
+                                cards={waysToContribute}
+                                onContributionCardMove={this.onContributionCardMove}
+                                onContributionCardDrop={this.onContributionCardDrop}
+                                onMount={this.onTiersAdminReady}
+                              />
+                            </Container>
+                          )}
+                        </Container>
+                      </div>
+                    )}
+                  </HorizontalScroller>
+                </Box>
               )}
-          </Fragment>
-        )}
+              {!isEvent && (
+                <ContainerSectionContent>
+                  <Link route="contribute" params={{ collectiveSlug: collective.slug, verb: 'contribute' }}>
+                    <StyledButton mt={3} width={1} buttonSize="small" fontSize="14px">
+                      <FormattedMessage id="SectionContribute.All" defaultMessage="View all the ways to contribute" /> →
+                    </StyledButton>
+                  </Link>
+                </ContainerSectionContent>
+              )}
+            </Fragment>
+          )}
+        </ContainerSectionContent>
       </Fragment>
     );
   }
